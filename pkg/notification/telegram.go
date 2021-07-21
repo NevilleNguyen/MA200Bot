@@ -23,6 +23,11 @@ type Telegram struct {
 	chatId int64
 }
 
+func init() {
+	viper.BindEnv(TelegramTokenFlag, "TELEGRAM_TOKEN")
+	viper.BindEnv(TelegramChatIdFlag, "TELEGRAM_CHAT_ID")
+}
+
 func NewTelegram() (*Telegram, error) {
 	l := zap.S()
 

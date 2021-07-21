@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/joho/godotenv"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -31,7 +32,6 @@ func InitConfig() {
 		_, b, _, _ := runtime.Caller(0)
 		basepath := filepath.Dir(b)
 
-		// Search config in home directory with name ".cryptosiri" (without extension).
 		viper.AddConfigPath(home)
 		viper.AddConfigPath("./env/")
 		viper.AddConfigPath("../env/")
@@ -51,6 +51,9 @@ func InitConfig() {
 			viper.SetConfigName("mainnet")
 		}
 
+	}
+	if err := godotenv.Load(); err != nil {
+		l.Panicf("error load .env file")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match

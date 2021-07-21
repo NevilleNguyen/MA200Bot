@@ -7,6 +7,7 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2103.1 // indirect
 	github.com/go-ozzo/ozzo-validation v3.6.0+incompatible // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible // indirect
+	github.com/joho/godotenv v1.3.0 // indirect
 	github.com/looplab/fsm v0.2.0 // indirect
 	github.com/markcheno/go-talib v0.0.0-20190307022042-cd53a9264d70 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
