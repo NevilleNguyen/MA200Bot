@@ -1,0 +1,24 @@
+{
+  "binance": {
+    "api_endpoint": "https://api.binance.com",
+    "ws_endpoint": "wss://stream.binance.com:9443"
+  },
+  "telegram": {
+    "token": "1040255352:AAEuUK4_NBv7akVSlICpW2qViPmPWsLISJo",
+    "chat_id": "-398141136"
+  },
+  "storage_path": "/tmp/",
+  "timeframes": [
+    "4h",
+    "1d"
+  ],
+  "symbols": [],
+  "excluded_symbols": [
+    "BUSDUSDT",
+    "PAXUSDT",
+    "USDCUSDT",
+    "TUSDUSDT",
+    "SUSDUSDT",
+    "DAIUSDT"
+  ]
+}
