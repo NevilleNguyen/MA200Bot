@@ -25,7 +25,12 @@ func rootMain(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	coreIns, err := core.New(ex, &core.AlertOnMAStrategy{})
+	alertOnMAStrategy, err := core.NewAlertOnMAStrategy()
+	if err != nil {
+		return err
+	}
+
+	coreIns, err := core.New(ex, alertOnMAStrategy)
 	if err != nil {
 		return err
 	}

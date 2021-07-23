@@ -8,6 +8,8 @@
     "4h",
     "1d"
   ],
+  "volume_period": 20,
+  "volume_multiplier": 1.5,
   "symbols": [],
   "excluded_symbols": [
     "BUSDUSDT",
