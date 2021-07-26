@@ -7,6 +7,7 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/looplab/fsm"
+	"github.com/quangkeu95/binancebot/pkg/exchange"
 	"github.com/quangkeu95/binancebot/pkg/model"
 	"github.com/quangkeu95/binancebot/pkg/notification"
 	"github.com/quangkeu95/binancebot/pkg/series"
@@ -180,10 +181,9 @@ func (s *AlertOnMAStrategy) handleMACross(params CandleParams) {
 			return
 		}
 
-		if params.LastVolume < s.volumeMultiplier*params.PreviousVolume {
+		if !s.isEnoughVolume(params) {
 			return
 		}
-
 		if err := currentFsm.Event(EventMA200CrossUp); err != nil {
 			s.l.Errorw("emit event MA cross up error", "error", err)
 			return
@@ -208,7 +208,7 @@ func (s *AlertOnMAStrategy) handleMACross(params CandleParams) {
 		if s.state[key].LastUpdate == params.LastUpdate {
 			return
 		}
-		if params.LastVolume < s.volumeMultiplier*params.PreviousVolume {
+		if !s.isEnoughVolume(params) {
 			return
 		}
 		if err := currentFsm.Event(EventMA200CrossDown); err != nil {
@@ -254,6 +254,15 @@ func (s *AlertOnMAStrategy) sendNotification(isUp bool, maTrend string, params C
 
 	msg := fmt.Sprintf("%v MA Cross | %s | Timeframe %v \n%v \n%v \n%v \n%v \n%v", emoji, symbolInfo, params.Timeframe, lastPriceInfo, lastMA200Info, lastVolumeInfo, maTrendInfo, lastUpdateInfo)
 	s.notifier.SendMessage(msg)
+}
+
+func (s *AlertOnMAStrategy) isEnoughVolume(params CandleParams) bool {
+	timeframeInSeconds := exchange.ParseTimeframeToSeconds(params.Timeframe)
+	lastUpdate := params.LastUpdate.UnixNano() / 1_000_000
+	now := time.Now().UnixNano() / 1_000_000
+	ratio := float64(now-lastUpdate) / float64(timeframeInSeconds*1000)
+
+	return params.LastVolume >= s.volumeMultiplier*params.PreviousVolume*ratio
 }
 
 func getMATrend(previousMA200, lastMA200 float64) string {

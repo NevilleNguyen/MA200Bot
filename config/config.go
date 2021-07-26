@@ -19,8 +19,11 @@ var (
 
 func InitConfig() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
 	l := zap.S()
+
+	_, b, _, _ := runtime.Caller(0)
+	basepath := filepath.Dir(b)
+
 	if ConfigFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(ConfigFile)
@@ -28,9 +31,6 @@ func InitConfig() {
 		// Find home directory.
 		home, err := homedir.Dir()
 		cobra.CheckErr(err)
-
-		_, b, _, _ := runtime.Caller(0)
-		basepath := filepath.Dir(b)
 
 		viper.AddConfigPath(home)
 		viper.AddConfigPath("./env/")
@@ -52,7 +52,9 @@ func InitConfig() {
 		}
 
 	}
-	if err := godotenv.Load(); err != nil {
+
+	envFilepath := filepath.Join(basepath, "../.env")
+	if err := godotenv.Load(envFilepath); err != nil {
 		l.Panicf("error load .env file")
 	}
 
