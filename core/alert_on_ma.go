@@ -65,13 +65,8 @@ type AlertOnMAStrategy struct {
 	volumeMultiplier float64
 }
 
-func NewAlertOnMAStrategy() (*AlertOnMAStrategy, error) {
+func NewAlertOnMAStrategy(notifier notification.Notifier) (*AlertOnMAStrategy, error) {
 	l := zap.S()
-	teleBot, err := notification.NewTelegram()
-	if err != nil {
-		l.Errorw("error create telegram bot", "error", err)
-		return nil, err
-	}
 
 	volumePeriod := viper.GetInt(VolumePeriodFlag)
 	volumeMultiplier := viper.GetFloat64(VolumeMultiplierFlag)
@@ -86,7 +81,7 @@ func NewAlertOnMAStrategy() (*AlertOnMAStrategy, error) {
 
 	return &AlertOnMAStrategy{
 		l:                l,
-		notifier:         teleBot,
+		notifier:         notifier,
 		state:            make(map[string]*State),
 		volumePeriod:     volumePeriod,
 		volumeMultiplier: volumeMultiplier,
@@ -103,19 +98,20 @@ func (s *AlertOnMAStrategy) WarmupPeriod() int {
 }
 
 func (s *AlertOnMAStrategy) OnCandle(df *model.Dataframe) {
-	prices := df.Close.LastValues(201)
-	volumes := df.Volume.LastValues(s.volumePeriod + 1)
+	prices := df.GetLastValues(model.CandleAttributeClose, 201)
+	volumes := df.GetLastValues(model.CandleAttributeVolume, s.volumePeriod+1)
 
 	previousCandleMA200 := series.MA(prices[:200], 200)
 	lastCandleMA200 := series.MA(prices[1:], 200)
-	lastClosePrice := df.Close.Last(0)
+	lastClosePrice := df.GetLast(model.CandleAttributeClose, 0)
 
 	previousCandleVolume := series.MA(volumes[:s.volumePeriod], s.volumePeriod)
-	lastCandleVolume := df.Volume.Last(0)
+	lastCandleVolume := df.GetLast(model.CandleAttributeVolume, 0)
 
-	go s.handleMACross(CandleParams{
+	s.handleMACross(CandleParams{
 		Symbol:             df.Symbol,
 		Timeframe:          df.Timeframe,
+		LastUpdate:         df.GetLastUpdate(),
 		LastClosePrice:     lastClosePrice,
 		LastPriceMA200:     lastCandleMA200,
 		PreviousPriceMA200: previousCandleMA200,
@@ -148,6 +144,8 @@ func (s *AlertOnMAStrategy) handleMACross(params CandleParams) {
 			"last_price", params.LastClosePrice,
 			"previous_ma200", params.PreviousPriceMA200,
 			"last_ma200", params.LastPriceMA200,
+			"last_update", params.LastUpdate,
+			"last_update_unix", params.LastUpdate.Unix(),
 		)
 
 		// create new state machine for each symbol + timeframe
@@ -181,9 +179,9 @@ func (s *AlertOnMAStrategy) handleMACross(params CandleParams) {
 			return
 		}
 
-		if !s.isEnoughVolume(params) {
-			return
-		}
+		// if !s.isEnoughVolume(params) {
+		// 	return
+		// }
 		if err := currentFsm.Event(EventMA200CrossUp); err != nil {
 			s.l.Errorw("emit event MA cross up error", "error", err)
 			return
@@ -208,9 +206,9 @@ func (s *AlertOnMAStrategy) handleMACross(params CandleParams) {
 		if s.state[key].LastUpdate == params.LastUpdate {
 			return
 		}
-		if !s.isEnoughVolume(params) {
-			return
-		}
+		// if !s.isEnoughVolume(params) {
+		// 	return
+		// }
 		if err := currentFsm.Event(EventMA200CrossDown); err != nil {
 			s.l.Errorw("emit event MA cross down error", "error", err)
 			return
@@ -250,9 +248,15 @@ func (s *AlertOnMAStrategy) sendNotification(isUp bool, maTrend string, params C
 	lastMA200Info := fmt.Sprintf("Last MA200: <b>%v</b>", params.LastPriceMA200)
 	maTrendInfo := fmt.Sprintf("MA Trend: <b>%v</b>", maTrend)
 	lastUpdateInfo := fmt.Sprintf("Last Update: <b>%v</b>", params.LastUpdate)
-	lastVolumeInfo := fmt.Sprintf("Last Volume: <b>%v</b>", params.LastVolume)
+	lastVolumeInfo := fmt.Sprintf("Last Volume: <b>%f</b>", params.LastVolume)
+	previousVolumeInfo := fmt.Sprintf("Previous Volume: <b>%f</b>", params.PreviousVolume)
 
-	msg := fmt.Sprintf("%v MA Cross | %s | Timeframe %v \n%v \n%v \n%v \n%v \n%v", emoji, symbolInfo, params.Timeframe, lastPriceInfo, lastMA200Info, lastVolumeInfo, maTrendInfo, lastUpdateInfo)
+	compareVolumeInfo := fmt.Sprintf("Compare volume: %v", s.getVolumeInfo(params))
+	// compareVolumeInfo := ""
+
+	msg := fmt.Sprintf("%v MA Cross | %s | Timeframe %v \n%v \n%v \n%v \n%v \n%v \n%v \n%v",
+		emoji, symbolInfo, params.Timeframe,
+		lastPriceInfo, lastMA200Info, lastVolumeInfo, previousVolumeInfo, maTrendInfo, compareVolumeInfo, lastUpdateInfo)
 	s.notifier.SendMessage(msg)
 }
 
@@ -263,6 +267,15 @@ func (s *AlertOnMAStrategy) isEnoughVolume(params CandleParams) bool {
 	ratio := float64(now-lastUpdate) / float64(timeframeInSeconds*1000)
 
 	return params.LastVolume >= s.volumeMultiplier*params.PreviousVolume*ratio
+}
+
+func (s *AlertOnMAStrategy) getVolumeInfo(params CandleParams) string {
+	timeframeInSeconds := exchange.ParseTimeframeToSeconds(params.Timeframe)
+	lastUpdate := params.LastUpdate.UnixNano() / 1_000_000
+	now := time.Now().UnixNano() / 1_000_000
+	ratio := float64(now-lastUpdate) / float64(timeframeInSeconds*1000)
+
+	return fmt.Sprintf("Current volume <b>%f</b> - Previous Volume with ratio <b>%f</b>", params.LastVolume, s.volumeMultiplier*params.PreviousVolume*ratio)
 }
 
 func getMATrend(previousMA200, lastMA200 float64) string {

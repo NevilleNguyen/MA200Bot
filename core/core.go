@@ -52,7 +52,7 @@ func New(ex exchange.Exchange, str strategy.Strategy) (*Core, error) {
 	return c, nil
 }
 
-func (c *Core) Run(ctx context.Context) error {
+func (c *Core) Run(ctx context.Context, listTimeframes []string) error {
 	c.l.Infow("Running core")
 
 	var listSymbols = make([]string, 0)
@@ -60,7 +60,6 @@ func (c *Core) Run(ctx context.Context) error {
 
 	selectedSymbols := viper.GetStringSlice(SelectedSymbolsFlag)
 	excludedSymbols := viper.GetStringSlice(ExcludedSymbolsFlag)
-	listTimeframes := viper.GetStringSlice(ListTimeframesFlag)
 
 	if len(selectedSymbols) > 0 {
 		for _, symbol := range selectedSymbols {

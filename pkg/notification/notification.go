@@ -1,6 +1,6 @@
 package notification
 
 type Notifier interface {
-	SendMessage(msg string)
+	SendMessage(msg string) error
 	OnError(err error)
 }

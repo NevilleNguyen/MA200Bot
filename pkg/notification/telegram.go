@@ -1,8 +1,11 @@
 package notification
 
 import (
+	"time"
+
 	validation "github.com/go-ozzo/ozzo-validation"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/quangkeu95/binancebot/lib/app"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
@@ -13,14 +16,18 @@ const (
 )
 
 const (
-	TelegramTokenFlag  = "telegram.token"
-	TelegramChatIdFlag = "telegram.chat_id"
+	TelegramTokenFlag        = "telegram.token"
+	TelegramChatIdFlag       = "telegram.chat_id"
+	DefaultTelegramRateLimit = 30
+	DefaultTelegramRateBurst = 1
+	DefaultTelegramTimeout   = 5 * time.Second
 )
 
 type Telegram struct {
-	l      *zap.SugaredLogger
-	api    *tgbotapi.BotAPI
-	chatId int64
+	l           *zap.SugaredLogger
+	api         *tgbotapi.BotAPI
+	chatId      int64
+	rateLimiter *app.RateLimiter
 }
 
 func init() {
@@ -49,21 +56,29 @@ func NewTelegram() (*Telegram, error) {
 	}
 
 	return &Telegram{
-		l:      l,
-		api:    api,
-		chatId: chatId,
+		l:           l,
+		api:         api,
+		chatId:      chatId,
+		rateLimiter: app.NewRateLimiter(DefaultTelegramRateLimit, DefaultTelegramRateBurst),
 	}, nil
 }
 
-func (t Telegram) SendMessage(msg string) {
+func (t Telegram) SendMessage(msg string) error {
 	sendMsg := tgbotapi.NewMessage(t.chatId, msg)
 	sendMsg.ParseMode = tgbotapi.ModeHTML
 	sendMsg.DisableWebPagePreview = true
 
+	if err := t.rateLimiter.WaitN(DefaultTelegramTimeout, 1); err != nil {
+		t.l.Errorw("telegram bot send message error rate limit", "error", err)
+		return err
+	}
+
 	_, err := t.api.Send(sendMsg)
 	if err != nil {
-		t.l.Debugw("telegram bot send message error", "error", err)
+		t.l.Errorw("telegram bot send message error", "error", err)
+		return err
 	}
+	return nil
 }
 
 func (t Telegram) OnError(err error) {

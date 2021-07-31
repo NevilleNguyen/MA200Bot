@@ -15,6 +15,7 @@ require (
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
+	github.com/xhit/go-str2duration/v2 v2.0.0 // indirect
 	go.uber.org/zap v1.18.1
 	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6 // indirect
 )

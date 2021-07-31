@@ -7,8 +7,10 @@ import (
 	"github.com/quangkeu95/binancebot/core"
 	"github.com/quangkeu95/binancebot/lib/app"
 	"github.com/quangkeu95/binancebot/pkg/exchange"
+	"github.com/quangkeu95/binancebot/pkg/notification"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -25,7 +27,12 @@ func rootMain(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	alertOnMAStrategy, err := core.NewAlertOnMAStrategy()
+	teleBot, err := notification.NewTelegram()
+	if err != nil {
+		return err
+	}
+
+	alertOnMAStrategy, err := core.NewAlertOnMAStrategy(teleBot)
 	if err != nil {
 		return err
 	}
@@ -35,9 +42,11 @@ func rootMain(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	listTimeframes := viper.GetStringSlice(core.ListTimeframesFlag)
+
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
-	return coreIns.Run(ctx)
+	return coreIns.Run(ctx, listTimeframes)
 }
 
 func Execute() {

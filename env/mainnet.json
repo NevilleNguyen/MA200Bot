@@ -10,7 +10,10 @@
   ],
   "volume_period": 20,
   "volume_multiplier": 1.5,
-  "symbols": [],
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT"
+  ],
   "excluded_symbols": [
     "BUSDUSDT",
     "PAXUSDT",

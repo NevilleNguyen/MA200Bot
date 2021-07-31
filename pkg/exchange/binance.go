@@ -118,6 +118,27 @@ func (b *Binance) CandlesByLimit(ctx context.Context, symbol, timeframe string, 
 	return candles, nil
 }
 
+func (b *Binance) CandlesByPeriod(ctx context.Context, symbol, period string, start, end time.Time) ([]model.Candle, error) {
+	candles := make([]model.Candle, 0)
+	klineService := b.client.NewKlinesService()
+
+	data, err := klineService.Symbol(symbol).
+		Interval(period).
+		StartTime(start.UnixNano() / int64(time.Millisecond)).
+		EndTime(end.UnixNano() / int64(time.Millisecond)).
+		Do(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, d := range data {
+		candles = append(candles, CandleFromKline(symbol, period, *d))
+	}
+
+	return candles, nil
+}
+
 // CandlesSubscription subscribe kline for specific symbol and timeframe
 func (b *Binance) CandlesSubscription(ctx context.Context, symbol, timeframe string, candleCh chan<- model.Candle, errCh chan<- error) {
 	wsKlineHandler := func(event *binance.WsKlineEvent) {
